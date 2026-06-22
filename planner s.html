@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planner</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:system-ui,-apple-system,sans-serif;background:#111;display:flex;flex-direction:column}
+
+/* SIDEBAR */
+.sidebar{position:fixed;top:0;left:0;height:100%;width:220px;background:#111;border-right:1px solid #222;z-index:200;transform:translateX(-100%);transition:transform .25s ease;display:flex;flex-direction:column;padding:0}
+.sidebar.open{transform:translateX(0)}
+.sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199;display:none}
+.sidebar-overlay.open{display:block}
+.sb-header{padding:16px 16px 8px;border-bottom:1px solid #1f1f1f}
+.sb-logo{font-size:15px;font-weight:700;color:#fff;letter-spacing:.02em}
+.sb-section{padding:12px 8px 4px;font-size:9px;color:#444;text-transform:uppercase;letter-spacing:.12em}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:7px;cursor:pointer;color:#666;font-size:13px;transition:.15s;margin:1px 6px}
+.sb-item:hover{background:#1a1a1a;color:#aaa}
+.sb-item.on{background:#1e2340;color:#8890d4}
+.sb-item svg{width:16px;height:16px;flex-shrink:0;opacity:.7}
+.sb-item.on svg{opacity:1}
+
+/* LAYOUT */
+.app{display:flex;flex-direction:column;height:100%;margin-left:0;transition:margin .25s ease}
+.app.shifted{margin-left:220px}
+
+/* HEADER */
+.header{background:#111;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:1px solid #1a1a1a}
+.h-left{display:flex;align-items:center;gap:10px}
+.menu-btn{background:none;border:none;color:#666;cursor:pointer;padding:4px 6px;display:flex;flex-direction:column;gap:4px}
+.menu-btn span{display:block;width:18px;height:1.5px;background:#666;border-radius:1px}
+.menu-btn:hover span{background:#aaa}
+.h-date-wrap{display:flex;align-items:center;gap:6px}
+.narr{background:none;border:none;color:#555;font-size:14px;cursor:pointer;padding:3px 5px;line-height:1}
+.narr:hover{color:#fff}
+.h-label{font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.1em;margin-bottom:1px}
+.h-title{font-size:22px;font-weight:700;line-height:1;cursor:pointer;border-bottom:1px dashed transparent;transition:.15s}
+.h-title:hover{border-bottom-color:#444}
+.h-year{color:#444;font-weight:300;font-size:18px;margin-left:4px}
+.date-picker{position:absolute;top:52px;left:50px;background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px;z-index:300;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.date-picker.hidden{display:none}
+.dp-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.dp-month{font-size:13px;font-weight:600;color:#fff}
+.dp-arr{background:none;border:none;color:#666;cursor:pointer;font-size:14px;padding:2px 6px}
+.dp-arr:hover{color:#fff}
+.dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.dp-head{font-size:9px;color:#555;text-align:center;padding:2px 0}
+.dp-day{font-size:11px;text-align:center;padding:5px 2px;border-radius:5px;cursor:pointer;color:#888}
+.dp-day:hover{background:#2a2a2a;color:#fff}
+.dp-day.today{color:#8890d4;font-weight:700}
+.dp-day.sel{background:#2d3a6b;color:#fff}
+.dp-day.om{color:#333}
+
+.h-stats{display:flex;gap:16px;align-items:center}
+.stat-block{text-align:right}
+.stat-num{font-size:18px;font-weight:700}
+.stat-lbl{font-size:8px;color:#555;text-transform:uppercase;letter-spacing:.06em}
+.stat-bar{height:2px;background:#1f1f1f;border-radius:1px;margin-top:2px;width:50px}
+.stat-fill{height:2px;background:#5b6fd4;border-radius:1px;transition:.3s}
+.sync-info{font-size:10px;color:#444;display:flex;align-items:center;gap:4px}
+.sdot{width:5px;height:5px;border-radius:50%;background:#4caf50;flex-shrink:0}
+.sdot.busy{background:#ff9800;animation:blink 1s infinite}
+.sdot.err{background:#e05}
+@keyframes blink{50%{opacity:.2}}
+
+/* TABS */
+
+
+/* BODY */
+.body{background:#eeece7;flex:1;padding:14px;overflow-y:auto;overflow-x:hidden}
+
+/* CARDS */
+.card{background:#fff;border-radius:10px;padding:14px 16px;border:.5px solid #dedad2}
+.ch{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.ct{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#aaa}
+.cc{font-size:10px;color:#ccc}
+
+/* ITEMS */
+.item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:.5px solid #f2efe8;cursor:pointer}
+.item:last-child{border-bottom:none}
+.item:hover .del{opacity:1}
+.cb{width:16px;height:16px;border:1.5px solid #ccc;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;transition:.15s}
+.cb.on{background:#2d3a6b;border-color:#2d3a6b}
+.it{font-size:13px;color:#1a1a1a;flex:1;line-height:1.3}
+.it.done{text-decoration:line-through;color:#ccc}
+.pnum{font-size:9px;color:#ccc;width:14px;flex-shrink:0;text-align:right}
+.del{font-size:13px;color:#ddd;cursor:pointer;opacity:0;transition:.15s;background:none;border:none;padding:0 3px;line-height:1}
+.del:hover{color:#e05}
+.add{display:flex;align-items:center;gap:6px;padding:7px 0 0;color:#ccc;font-size:12px;cursor:pointer}
+.add:hover{color:#888}
+.ai{border:none;outline:none;font-size:13px;color:#1a1a1a;background:none;width:100%;font-family:inherit;padding:6px 0;border-bottom:.5px solid #e0ddd5}
+
+/* PRAYER */
+.pr{display:flex;justify-content:space-between;padding:6px 0;border-bottom:.5px solid #f2efe8;align-items:center}
+.pr:last-child{border-bottom:none}
+.pr.now{background:#2d3a6b;margin:0 -16px;padding:6px 16px;border-radius:6px}
+.pr.now .pn,.pr.now .pt{color:#fff}
+.pn{font-size:12px;color:#777}
+.pt{font-size:12px;font-weight:600;color:#111}
+.pcity{font-size:9px;color:#bbb}
+
+/* HABITS */
+.hrow{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:.5px solid #f2efe8}
+.hrow:last-child{border-bottom:none}
+
+/* WEEK habit grid */
+.whg{display:grid;grid-template-columns:1fr repeat(7,32px);gap:3px 4px;align-items:center;margin-top:4px}
+.whg-lbl{font-size:12px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.whg-h{font-size:9px;color:#bbb;text-align:center}
+.whg-c{width:28px;height:28px;border-radius:5px;background:#eeece7;border:none;cursor:pointer;font-size:10px;color:#fff;transition:.15s}
+.whg-c.on{background:#2d3a6b}
+.whg-c:hover{background:#c0bdb5}
+
+/* WEEK day rows */
+.wdr{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:.5px solid #f2efe8;cursor:pointer;transition:.15s}
+.wdr:hover{color:#2d3a6b}
+.wdr:last-child{border-bottom:none}
+.wdr.tday{font-weight:600;color:#2d3a6b}
+.wdr-n{font-size:13px;color:inherit}
+.wdr-c{font-size:11px;color:#bbb}
+
+/* CALENDAR */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-h{font-size:9px;color:#aaa;text-align:center;padding:3px 0;font-weight:600}
+.cday{min-height:70px;border:.5px solid #e5e2da;border-radius:7px;padding:5px;font-size:11px;color:#555;position:relative;display:flex;flex-direction:column;gap:2px}
+.cday.om{color:#ccc;background:#f8f7f3}
+.cday.tday{border:2px solid #2d3a6b;color:#2d3a6b}
+.cday-num{font-weight:600;cursor:pointer;display:inline-block;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:.15s;flex-shrink:0}
+.cday-num:hover{background:#2d3a6b;color:#fff}
+.cday.tday .cday-num{color:#2d3a6b}
+.cday.tday .cday-num:hover{color:#fff}
+.c-note{font-size:10px;color:#888;line-height:1.3;flex:1;cursor:text;word-break:break-word;min-height:16px}
+.c-note-input{font-size:10px;color:#1a1a1a;border:none;outline:none;background:none;width:100%;resize:none;font-family:inherit;line-height:1.3;flex:1;min-height:30px}
+.cdots{display:flex;gap:2px;flex-wrap:wrap;margin-top:auto}
+.cdot{width:4px;height:4px;border-radius:50%;background:#2d3a6b}
+
+/* NOTES */
+.notes-ta{width:100%;border:none;outline:none;resize:none;font-size:13px;color:#555;background:none;font-family:inherit;min-height:60px;line-height:1.6}
+
+/* GRIDS */
+.day-grid{display:grid;grid-template-columns:1fr 1fr 180px;gap:12px}
+.week-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.month-grid{display:grid;grid-template-columns:1fr 180px;gap:12px;align-items:start}
+.full-col{grid-column:1/-1}
+
+@media(max-width:700px){
+  .day-grid{grid-template-columns:1fr}
+  .week-grid{grid-template-columns:1fr}
+  .month-grid{grid-template-columns:1fr}
+  .stat-num{font-size:15px}
+  .h-title{font-size:18px}
+  .h-year{font-size:15px}
+  .app.shifted{margin-left:0}
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR OVERLAY -->
+<div class="sidebar-overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebar">
+  <div class="sb-header">
+    <div class="sb-logo">Planner</div>
+  </div>
+  <div class="sb-section">Views</div>
+  <div class="sb-item on" id="sb-day" onclick="setView('day',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+    Day
+  </div>
+  <div class="sb-item" id="sb-week" onclick="setView('week',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="4" x2="8" y2="9"/><line x1="16" y1="4" x2="16" y2="9"/></svg>
+    Week
+  </div>
+  <div class="sb-item" id="sb-month" onclick="setView('month',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="4" x2="8" y2="9"/><line x1="16" y1="4" x2="16" y2="9"/><line x1="7" y1="14" x2="7" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="17" y1="14" x2="17" y2="14"/></svg>
+    Month
+  </div>
+  <div class="sb-section" style="margin-top:auto">Info</div>
+  <div class="sb-item" style="margin-bottom:8px;cursor:default;opacity:.5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span id="sb-sync-lbl">Synced</span>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app" id="app">
+  <div class="header">
+    <div class="h-left">
+      <button class="menu-btn" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
+      <div class="h-date-wrap">
+        <button class="narr" onclick="nav(-1)">←</button>
+        <div style="position:relative">
+          <div>
+            <div class="h-label" id="hLbl"></div>
+            <div style="display:flex;align-items:baseline">
+              <span class="h-title" id="hMain" onclick="toggleDatePicker()"></span>
+              <span class="h-year" id="hYear"></span>
+            </div>
+          </div>
+          <div class="date-picker hidden" id="datePicker">
+            <div class="dp-row">
+              <button class="dp-arr" onclick="dpNav(-1)">←</button>
+              <span class="dp-month" id="dpMonth"></span>
+              <button class="dp-arr" onclick="dpNav(1)">→</button>
+            </div>
+            <div class="dp-grid" id="dpGrid"></div>
+          </div>
+        </div>
+        <button class="narr" onclick="nav(1)">→</button>
+      </div>
+    </div>
+    <div class="h-stats">
+      <div class="stat-block">
+        <div class="stat-num" id="sPct">0%</div>
+        <div class="stat-lbl" id="sLbl">0/0 tasks</div>
+        <div class="stat-bar"><div class="stat-fill" id="sBar" style="width:0"></div></div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num" id="sHab">0/0</div>
+        <div class="stat-lbl">habits</div>
+      </div>
+      <div class="sync-info"><span class="sdot" id="sdot"></span><span id="sinfo">synced</span></div>
+    </div>
+  </div>
+
+
+
+  <div class="body" id="body"></div>
+</div>
+
+<script>
+const JSONBIN_KEY='$2a$10$KJdhnhcgja.XisflcakmXurfntPrl6FWJ7Qfet/oUuSfuY0XUMUPC';
+const JSONBIN_URL='https://api.jsonbin.io/v3/bins';
+let BIN_ID=localStorage.getItem('planner_bin_id')||null;
+
+const MFULL=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MSHORT=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DFULL=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+let view='day';
+let today=new Date();
+let cur=new Date(today);
+let dpCur=new Date(today);
+let D={tasks:{},priorities:{},habits:[],logs:{},notes:{},wGoals:{},mGoals:{},calNotes:{},events:{}};
+let prayers={};
+let adding={task:false,pri:false,hab:false,wg:false,mg:false};
+let saveTimer=null;
+let editingCalCell=null;
+
+/* SIDEBAR */
+let sidebarOpen=false;
+function toggleSidebar(){sidebarOpen=!sidebarOpen;document.getElementById('sidebar').classList.toggle('open',sidebarOpen);document.getElementById('overlay').classList.toggle('open',sidebarOpen);}
+function closeSidebar(){sidebarOpen=false;document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('open');}
+
+/* DATE PICKER */
+let dpOpen=false;
+function toggleDatePicker(){dpOpen=!dpOpen;document.getElementById('datePicker').classList.toggle('hidden',!dpOpen);if(dpOpen){dpCur=new Date(cur);renderDP();}}
+function closeDP(){dpOpen=false;document.getElementById('datePicker').classList.add('hidden');}
+document.addEventListener('click',e=>{if(!e.target.closest('.h-date-wrap'))closeDP();});
+function dpNav(dir){dpCur.setMonth(dpCur.getMonth()+dir);renderDP();}
+function renderDP(){
+  const y=dpCur.getFullYear(),m=dpCur.getMonth();
+  document.getElementById('dpMonth').textContent=MFULL[m]+' '+y;
+  const first=new Date(y,m,1);
+  const startDow=(first.getDay()+6)%7;
+  const days=new Date(y,m+1,0).getDate();
+  const prev=new Date(y,m,0).getDate();
+  let html='';
+  ['M','T','W','T','F','S','S'].forEach(d=>html+=`<div class="dp-head">${d}</div>`);
+  for(let i=0;i<startDow;i++)html+=`<div class="dp-day om">${prev-startDow+1+i}</div>`;
+  for(let d=1;d<=days;d++){
+    const date=new Date(y,m,d);
+    const isTod=dk(date)===dk(today);
+    const isSel=dk(date)===dk(cur);
+    html+=`<div class="dp-day${isTod?' today':''}${isSel?' sel':''}" onclick="selectDate(${y},${m},${d})">${d}</div>`;
+  }
+  document.getElementById('dpGrid').innerHTML=html;
+}
+function selectDate(y,m,d){
+  cur=new Date(y,m,d);
+  closeDP();
+  if(view!=='day')setView('day',document.getElementById('sb-day'));
+  else render();
+  fetchPrayers(cur);
+}
+
+/* UTILS */
+function dk(d){return d.toISOString().slice(0,10)}
+function getMonday(d){let m=new Date(d);m.setDate(d.getDate()-((d.getDay()+6)%7));return m}
+function getWeekNum(d){let j=new Date(d.getFullYear(),0,1);return Math.ceil((((d-j)/864e5)+j.getDay()+1)/7)}
+function uid(){return Math.random().toString(36).slice(2,8)}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function mk(d){return d.getFullYear()+'-'+(d.getMonth()+1)}
+
+/* SYNC */
+function setSyncStatus(state,text){
+  document.getElementById('sdot').className='sdot'+(state==='busy'?' busy':state==='err'?' err':'');
+  document.getElementById('sinfo').textContent=text;
+  document.getElementById('sb-sync-lbl').textContent=text;
+}
+
+async function loadData(){
+  setSyncStatus('busy','loading...');
+  if(!BIN_ID){
+    try{
+      const r=await fetch(JSONBIN_URL,{method:'POST',headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY,'X-Bin-Name':'planner-data','X-Bin-Private':'false'},body:JSON.stringify(D)});
+      const j=await r.json();
+      BIN_ID=j.metadata.id;
+      localStorage.setItem('planner_bin_id',BIN_ID);
+      setSyncStatus('ok','synced ✓');
+    }catch(e){setSyncStatus('err','error');}
+  }else{
+    try{
+      const r=await fetch(`${JSONBIN_URL}/${BIN_ID}/latest`,{headers:{'X-Master-Key':JSONBIN_KEY}});
+      const j=await r.json();
+      if(j.record)D=j.record;
+      setSyncStatus('ok','synced ✓');
+    }catch(e){setSyncStatus('err','offline');}
+  }
+  fetchPrayers(cur);
+  render();
+}
+
+async function saveData(){
+  if(!BIN_ID)return;
+  setSyncStatus('busy','saving...');
+  try{
+    await fetch(`${JSONBIN_URL}/${BIN_ID}`,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY},body:JSON.stringify(D)});
+    setSyncStatus('ok','synced ✓');
+  }catch(e){setSyncStatus('err','sync error');}
+}
+function save(){clearTimeout(saveTimer);saveTimer=setTimeout(saveData,800);}
+
+/* PRAYERS */
+async function fetchPrayers(d){
+  const key=dk(d);
+  if(prayers[key]){render();return;}
+  try{
+    const y=d.getFullYear(),m=d.getMonth()+1,day=d.getDate();
+    const r=await fetch(`https://api.aladhan.com/v1/timings/${day}-${m}-${y}?latitude=41.2867&longitude=36.33&method=13`);
+    const j=await r.json();
+    if(j.data&&j.data.timings){
+      const t=j.data.timings;
+      prayers[key]=[{n:'Imsak',t:t.Imsak},{n:'Sunrise',t:t.Sunrise},{n:'Dhuhr',t:t.Dhuhr},{n:'Asr',t:t.Asr},{n:'Maghrib',t:t.Maghrib},{n:'Isha',t:t.Isha}];
+    }
+  }catch(e){}
+  render();
+}
+function curPrayerIdx(list){
+  const now=new Date(),nm=now.getHours()*60+now.getMinutes();
+  let ci=-1;
+  list.forEach((p,i)=>{const[h,m]=p.t.split(':').map(Number);if(nm>=h*60+m)ci=i;});
+  return ci;
+}
+
+/* NAV */
+function nav(dir){
+  if(view==='day'){cur.setDate(cur.getDate()+dir);fetchPrayers(cur);}
+  else if(view==='week')cur.setDate(cur.getDate()+dir*7);
+  else cur.setMonth(cur.getMonth()+dir);
+  render();
+}
+
+function setView(v,btn){
+  view=v;
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('on'));
+  document.getElementById('sb-'+v).classList.add('on');
+  Object.keys(adding).forEach(k=>adding[k]=false);
+  editingCalCell=null;
+  closeSidebar();
+  render();
+}
+
+/* DATA OPS */
+function toggle(arr,id){const i=arr.find(x=>x.id===id);if(i){i.done=!i.done;save();render();}}
+function delItem(arr,id){const i=arr.findIndex(x=>x.id===id);if(i>-1){arr.splice(i,1);save();render();}}
+function toggleLog(hi,key){if(!D.logs[key])D.logs[key]={};D.logs[key][hi]=!D.logs[key][hi];save();render();}
+function addItem(arr,text){arr.push({id:uid(),text,done:false});}
+function ensureArr(obj,key){if(!obj[key])obj[key]=[];}
+
+/* STATS */
+function updateStats(){
+  const key=dk(cur);
+  const all=[...(D.tasks[key]||[]),...(D.priorities[key]||[])];
+  const done=all.filter(x=>x.done).length,total=all.length;
+  const pct=total?Math.round(done/total*100):0;
+  document.getElementById('sPct').textContent=pct+'%';
+  document.getElementById('sLbl').textContent=done+'/'+total+' tasks';
+  document.getElementById('sBar').style.width=pct+'%';
+  const hd=D.habits.filter((_,i)=>(D.logs[key]||{})[i]).length;
+  document.getElementById('sHab').textContent=hd+'/'+D.habits.length;
+}
+
+function updateHeader(){
+  if(view==='day'){
+    const isT=dk(cur)===dk(today);
+    document.getElementById('hLbl').textContent=(isT?'TODAY · ':'')+DFULL[cur.getDay()].toUpperCase();
+    document.getElementById('hMain').textContent=MSHORT[cur.getMonth()]+' '+cur.getDate();
+    document.getElementById('hYear').textContent=' '+cur.getFullYear();
+  }else if(view==='week'){
+    const mon=getMonday(cur),sun=new Date(mon);sun.setDate(mon.getDate()+6);
+    document.getElementById('hLbl').textContent='WEEK '+getWeekNum(mon);
+    document.getElementById('hMain').textContent=MSHORT[mon.getMonth()]+' '+mon.getDate()+' – '+sun.getDate();
+    document.getElementById('hYear').textContent=' '+mon.getFullYear();
+  }else{
+    document.getElementById('hLbl').textContent=cur.getFullYear()+'';
+    document.getElementById('hMain').textContent=MFULL[cur.getMonth()];
+    document.getElementById('hYear').textContent='';
+  }
+}
+
+/* RENDER DAY */
+function renderDay(){
+  const key=dk(cur);
+  const tasks=D.tasks[key]||[];
+  const prios=D.priorities[key]||[];
+  const note=D.notes[key]||''
+  const prList=prayers[key];
+  const ci=prList?curPrayerIdx(prList):-1;
+
+  let html='<div class="day-grid">';
+
+  /* PRIORITIES */
+  html+=`<div class="card"><div class="ch"><span class="ct">Priorities</span><span class="cc">${prios.filter(x=>x.done).length}/${prios.length}</span></div>`;
+  prios.forEach((p,i)=>{
+    html+=`<div class="item" onclick="toggle(D.priorities['${key}'],'${p.id}')">
+      <span class="pnum">${String(i+1).padStart(2,'0')}</span>
+      <div class="cb${p.done?' on':''}">${p.done?'✓':''}</div>
+      <span class="it${p.done?' done':''}">${esc(p.text)}</span>
+      <button class="del" onclick="event.stopPropagation();delItem(D.priorities['${key}'],'${p.id}')">×</button>
+    </div>`;
+  });
+  if(adding.pri){
+    html+=`<input class="ai" id="aiPri" placeholder="Add a priority..." autofocus
+      onkeydown="if(event.key==='Enter'&&this.value.trim()){ensureArr(D.priorities,'${key}');addItem(D.priorities['${key}'],this.value.trim());adding.pri=false;save();render();}if(event.key==='Escape'){adding.pri=false;render();}"
+      onblur="setTimeout(()=>{if(adding.pri){adding.pri=false;render();}},200)">`;
+  }else{
+    html+=`<div class="add" onclick="adding.pri=true;render()">+ Add a priority</div>`;
+  }
+  html+=`</div>`;
+
+  /* TASKS */
+  html+=`<div class="card"><div class="ch"><span class="ct">Tasks</span><span class="cc">${tasks.filter(x=>x.done).length}/${tasks.length}</span></div>`;
+  tasks.forEach(t=>{
+    html+=`<div class="item" onclick="toggle(D.tasks['${key}'],'${t.id}')">
+      <div class="cb${t.done?' on':''}">${t.done?'✓':''}</div>
+      <span class="it${t.done?' done':''}">${esc(t.text)}</span>
+      <button class="del" onclick="event.stopPropagation();delItem(D.tasks['${key}'],'${t.id}')">×</button>
+    </div>`;
+  });
+  if(adding.task){
+    html+=`<input class="ai" id="aiTask" placeholder="Add a task and press enter..." autofocus
+      onkeydown="if(event.key==='Enter'&&this.value.trim()){ensureArr(D.tasks,'${key}');addItem(D.tasks['${key}'],this.value.trim());adding.task=false;save();render();}if(event.key==='Escape'){adding.task=false;render();}"
+      onblur="setTimeout(()=>{if(adding.task){adding.task=false;render();}},200)">`;
+  }else{
+    html+=`<div class="add" onclick="adding.task=true;render()">+ Add a task</div>`;
+  }
+  html+=`</div>`;
+
+  /* PRAYER - right column, spans 2 rows */
+  html+=`<div class="card" style="grid-column:3;grid-row:1/3"><div class="ch"><span class="ct">Prayer Times</span><span class="pcity">Samsun</span></div>`;
+  if(prList){
+    prList.forEach((p,i)=>{html+=`<div class="pr${i===ci?' now':''}""><span class="pn">${p.n}</span><span class="pt">${p.t}</span></div>`;});
+  }else{
+    html+=`<p style="font-size:12px;color:#bbb;padding:4px 0">Loading...</p>`;
+  }
+  html+=`</div>`;
+
+  /* HABITS */
+  html+=`<div class="card"><div class="ch"><span class="ct">Habits</span><span class="cc">${D.habits.filter((_,i)=>(D.logs[key]||{})[i]).length}/${D.habits.length}</span></div>`;
+  D.habits.forEach((h,i)=>{
+    const done=(D.logs[key]||{})[i];
+    html+=`<div class="hrow">
+      <div class="item" style="border:none;padding:4px 0;flex:1" onclick="toggleLog(${i},'${key}')">
+        <div class="cb${done?' on':''}">${done?'✓':''}</div>
+        <span class="it${done?' done':''}">${esc(h)}</span>
+      </div>
+      <button class="del" style="opacity:1" onclick="D.habits.splice(${i},1);save();render()">×</button>
+    </div>`;
+  });
+  if(adding.hab){
+    html+=`<input class="ai" id="aiHab" placeholder="Add a habit..." autofocus
+      onkeydown="if(event.key==='Enter'&&this.value.trim()){D.habits.push(this.value.trim());adding.hab=false;save();render();}if(event.key==='Escape'){adding.hab=false;render();}"
+      onblur="setTimeout(()=>{if(adding.hab){adding.hab=false;render();}},200)">`;
+  }else{
+    html+=`<div class="add" onclick="adding.hab=true;render()">+ Add a habit</div>`;
+  }
+  html+=`</div>`;
+
+  /* NOTES */
+  html+=`<div class="card"><div class="ch"><span class="ct">Notes</span></div>
+    <textarea class="notes-ta" placeholder="Brain dump, reflections, anything on your mind..."
+      oninput="D.notes['${key}']=this.value;save()">${esc(note)}</textarea>
+  </div>`;
+
+  html+=`</div>`;
+  document.getElementById('body').innerHTML=html;
+  updateStats();updateHeader();
+  if(adding.pri)document.getElementById('aiPri')?.focus();
+  if(adding.task)document.getElementById('aiTask')?.focus();
+  if(adding.hab)document.getElementById('aiHab')?.focus();
+}
+
+/* RENDER WEEK */
+function renderWeek(){
+  const mon=getMonday(cur);
+  const wkey=dk(mon);
+  const wGoals=D.wGoals[wkey]||[];
+  const weekHabPct=calcWeekHabPct(mon);
+
+  let html='<div class="week-grid">';
+
+  html+=`<div class="card"><div class="ch"><span class="ct">Weekly Goals</span><span class="cc">${wGoals.filter(x=>x.done).length}/${wGoals.length}</span></div>`;
+  wGoals.forEach(g=>{
+    html+=`<div class="item" onclick="toggle(D.wGoals['${wkey}'],'${g.id}')">
+      <div class="cb${g.done?' on':''}">${g.done?'✓':''}</div>
+      <span class="it${g.done?' done':''}">${esc(g.text)}</span>
+      <button class="del" onclick="event.stopPropagation();delItem(D.wGoals['${wkey}'],'${g.id}')">×</button>
+    </div>`;
+  });
+  if(adding.wg){
+    html+=`<input class="ai" id="aiWg" placeholder="Add a weekly goal..." autofocus
+      onkeydown="if(event.key==='Enter'&&this.value.trim()){ensureArr(D.wGoals,'${wkey}');addItem(D.wGoals['${wkey}'],this.value.trim());adding.wg=false;save();render();}if(event.key==='Escape'){adding.wg=false;render();}"
+      onblur="setTimeout(()=>{if(adding.wg){adding.wg=false;render();}},200)">`;
+  }else{
+    html+=`<div class="add" onclick="adding.wg=true;render()">+ Add a weekly goal</div>`;
+  }
+  html+=`</div>`;
+
+  html+=`<div class="card"><div class="ch"><span class="ct">This Week</span></div>`;
+  const dayLabels=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  for(let i=0;i<7;i++){
+    const d=new Date(mon);d.setDate(mon.getDate()+i);
+    const key=dk(d);
+    const all=[...(D.tasks[key]||[]),...(D.priorities[key]||[])];
+    const done=all.filter(x=>x.done).length;
+    const isT=key===dk(today);
+    html+=`<div class="wdr${isT?' tday':''}" onclick="cur=new Date(${d.getTime()});setView('day',document.getElementById('sb-day'))">
+      <span class="wdr-n">${dayLabels[i]} ${d.getDate()}</span>
+      ${all.length?`<span class="wdr-c">${done}/${all.length} tasks</span>`:'<span class="wdr-c" style="color:#e0ddd5">—</span>'}
+    </div>`;
+  }
+  html+=`</div>`;
+
+  html+=`<div class="card full-col"><div class="ch"><span class="ct">Habit Tracker</span><span class="cc">${weekHabPct}% consistency</span></div>`;
+  if(!D.habits.length){
+    html+=`<p style="font-size:12px;color:#bbb;padding:4px 0">No habits yet. Add them in Day view.</p>`;
+  }else{
+    html+=`<div class="whg"><div></div>`;
+    dayLabels.forEach(d=>html+=`<div class="whg-h">${d}</div>`);
+    D.habits.forEach((h,hi)=>{
+      html+=`<div class="whg-lbl">${esc(h)}</div>`;
+      for(let i=0;i<7;i++){
+        const d=new Date(mon);d.setDate(mon.getDate()+i);
+        const key=dk(d);
+        const on=(D.logs[key]||{})[hi];
+        html+=`<button class="whg-c${on?' on':''}" onclick="toggleLog(${hi},'${key}')">${on?'✓':''}</button>`;
+      }
+    });
+    html+=`</div>`;
+  }
+  html+=`</div></div>`;
+
+  document.getElementById('body').innerHTML=html;
+  updateHeader();updateStats();
+  if(adding.wg)document.getElementById('aiWg')?.focus();
+}
+
+function calcWeekHabPct(mon){
+  if(!D.habits.length)return 0;
+  let total=0,done=0;
+  for(let i=0;i<7;i++){
+    const d=new Date(mon);d.setDate(mon.getDate()+i);
+    const key=dk(d);
+    D.habits.forEach((_,hi)=>{total++;if((D.logs[key]||{})[hi])done++;});
+  }
+  return total?Math.round(done/total*100):0;
+}
+
+/* RENDER MONTH */
+function renderMonth(){
+  const y=cur.getFullYear(),m=cur.getMonth();
+  const mkey=mk(cur);
+  const mGoals=D.mGoals[mkey]||[];
+  const first=new Date(y,m,1);
+  const startDow=(first.getDay()+6)%7;
+  const daysInM=new Date(y,m+1,0).getDate();
+  const prevDays=new Date(y,m,0).getDate();
+
+  let html='<div class="month-grid">';
+  html+=`<div class="card">`;
+  html+=`<div class="cal">`;
+  ['M','T','W','T','F','S','S'].forEach(d=>html+=`<div class="cal-h">${d}</div>`);
+
+  for(let i=0;i<startDow;i++){
+    html+=`<div class="cday om"><span class="cday-num">${prevDays-startDow+1+i}</span></div>`;
+  }
+  for(let d=1;d<=daysInM;d++){
+    const date=new Date(y,m,d);
+    const key=dk(date);
+    const isT=key===dk(today);
+    const all=[...(D.tasks[key]||[]),...(D.priorities[key]||[])];
+    const calNote=D.calNotes?.[key]||'';
+    const isEditing=editingCalCell===key;
+
+    html+=`<div class="cday${isT?' tday':''}" id="cd-${key}">
+      <span class="cday-num" onclick="goToDay(${date.getTime()})">${d}</span>`;
+    if(isEditing){
+      html+=`<textarea class="c-note-input" id="cn-${key}" autofocus
+        onblur="saveCalNote('${key}',this.value)"
+        onkeydown="if(event.key==='Escape'){saveCalNote('${key}',this.value)}"
+        >${esc(calNote)}</textarea>`;
+    }else{
+      html+=`<div class="c-note" onclick="startEditCalNote('${key}')">${esc(calNote)||''}</div>`;
+    }
+    if(all.length){
+      html+=`<div class="cdots">${all.slice(0,5).map(()=>'<div class="cdot"></div>').join('')}</div>`;
+    }
+    html+=`</div>`;
+  }
+
+  const used=startDow+daysInM,rem=(7-used%7)%7;
+  for(let i=1;i<=rem;i++)html+=`<div class="cday om"><span class="cday-num">${i}</span></div>`;
+  html+=`</div></div>`;
+
+  html+=`<div class="card"><div class="ch"><span class="ct">Monthly Goals</span><span class="cc">${mGoals.filter(x=>x.done).length}/${mGoals.length}</span></div>`;
+  mGoals.forEach(g=>{
+    html+=`<div class="item" onclick="toggle(D.mGoals['${mkey}'],'${g.id}')">
+      <div class="cb${g.done?' on':''}">${g.done?'✓':''}</div>
+      <span class="it${g.done?' done':''}">${esc(g.text)}</span>
+      <button class="del" onclick="event.stopPropagation();delItem(D.mGoals['${mkey}'],'${g.id}')">×</button>
+    </div>`;
+  });
+  if(adding.mg){
+    html+=`<input class="ai" id="aiMg" placeholder="Add a monthly goal..." autofocus
+      onkeydown="if(event.key==='Enter'&&this.value.trim()){ensureArr(D.mGoals,'${mkey}');addItem(D.mGoals['${mkey}'],this.value.trim());adding.mg=false;save();render();}if(event.key==='Escape'){adding.mg=false;render();}"
+      onblur="setTimeout(()=>{if(adding.mg){adding.mg=false;render();}},200)">`;
+  }else{
+    html+=`<div class="add" onclick="adding.mg=true;render()">+ Add a monthly goal</div>`;
+  }
+  html+=`</div></div>`;
+
+  document.getElementById('body').innerHTML=html;
+  updateHeader();updateStats();
+  if(editingCalCell){
+    const ta=document.getElementById('cn-'+editingCalCell);
+    if(ta){ta.focus();ta.selectionStart=ta.selectionEnd=ta.value.length;}
+  }
+  if(adding.mg)document.getElementById('aiMg')?.focus();
+}
+
+function goToDay(ts){
+  cur=new Date(ts);
+  setView('day',document.getElementById('sb-day'));
+  fetchPrayers(cur);
+}
+
+function startEditCalNote(key){
+  editingCalCell=key;
+  render();
+}
+
+function saveCalNote(key,val){
+  if(!D.calNotes)D.calNotes={};
+  D.calNotes[key]=val;
+  editingCalCell=null;
+  save();
+  render();
+}
+
+function render(){
+  if(view==='day')renderDay();
+  else if(view==='week')renderWeek();
+  else renderMonth();
+}
+
+loadData();
+setInterval(()=>{if(view==='day')render();},60000);
+setInterval(loadData,30000);
+</script>
+</body>
+</html>
